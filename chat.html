@@ -1,8 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>MeChat - Chat</title>
+  <title>MeChat - Secure Chat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- CryptoJS AES -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
   <style>
     body {
       font-family: Arial;
@@ -32,7 +36,7 @@
     }
 
     #messages {
-      height: 200px;
+      height: 220px;
       overflow-y: auto;
       background: white;
       padding: 10px;
@@ -62,18 +66,34 @@
       background: #4CAF50;
       color: white;
     }
+
+    .bubble {
+      padding: 8px;
+      border-radius: 8px;
+      margin: 5px 0;
+      max-width: 70%;
+    }
+
+    .me {
+      background: #DCF8C6;
+      margin-left: auto;
+      text-align: right;
+    }
+
+    .them {
+      background: #eee;
+    }
   </style>
 </head>
 <body>
 
 <div class="header">
-  <div>MeChat</div>
+  <div>🔐 MeChat Secure</div>
   <button class="logout-btn" onclick="logout()">Logout</button>
 </div>
 
 <div class="content">
-  <h2>Welcome to MeChat 🎉</h2>
-  <p id="userInfo"></p>
+  <h3 id="userInfo"></h3>
 
   <h3>Users</h3>
   <div id="usersList"></div>
@@ -117,6 +137,9 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// 🔐 Shared Secret Key (Basic Encryption)
+const SECRET_KEY = "MeChatSuperSecretKey123";
+
 let currentUser = null;
 let selectedUserId = null;
 let unsubscribeListener = null;
@@ -127,7 +150,7 @@ window.logout = async function() {
   window.location.href = "index.html";
 };
 
-// Generate consistent chat ID
+// Generate unique chat ID
 function getChatId(uid1, uid2) {
   return uid1 < uid2 ? uid1 + "_" + uid2 : uid2 + "_" + uid1;
 }
@@ -150,18 +173,28 @@ function openChat(username, userId) {
     const messagesDiv = document.getElementById("messages");
     messagesDiv.innerHTML = "";
 
-    snapshot.forEach((doc) => {
-      const msg = doc.data();
-      const div = document.createElement("div");
-      div.style.margin = "5px 0";
+    snapshot.forEach((docSnap) => {
+      const msg = docSnap.data();
 
-      if (msg.senderId === currentUser.uid) {
-        div.style.textAlign = "right";
-        div.innerHTML = "<b>You:</b> " + msg.text;
-      } else {
-        div.innerHTML = "<b>Them:</b> " + msg.text;
+      let decryptedText = "";
+
+      try {
+        const bytes = CryptoJS.AES.decrypt(msg.text, SECRET_KEY);
+        decryptedText = bytes.toString(CryptoJS.enc.Utf8);
+      } catch {
+        decryptedText = "⚠️ Decryption failed";
       }
 
+      const div = document.createElement("div");
+      div.classList.add("bubble");
+
+      if (msg.senderId === currentUser.uid) {
+        div.classList.add("me");
+      } else {
+        div.classList.add("them");
+      }
+
+      div.innerText = decryptedText;
       messagesDiv.appendChild(div);
     });
 
@@ -169,24 +202,27 @@ function openChat(username, userId) {
   });
 }
 
-// Send message
+// Send encrypted message
 window.sendMessage = async function() {
   const input = document.getElementById("messageInput");
   const text = input.value.trim();
+
   if (!text || !selectedUserId) return;
 
   const chatId = getChatId(currentUser.uid, selectedUserId);
 
+  const encrypted = CryptoJS.AES.encrypt(text, SECRET_KEY).toString();
+
   await addDoc(collection(db, "chats", chatId, "messages"), {
     senderId: currentUser.uid,
-    text: text,
+    text: encrypted,
     timestamp: new Date()
   });
 
   input.value = "";
 };
 
-// Auth state listener
+// Auth state
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.href = "index.html";
@@ -213,5 +249,6 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 </script>
+
 </body>
 </html>
