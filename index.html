@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MeChat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+  <h2>MeChat Loading...</h2>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    
+    // Import Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // 🔥 PASTE YOUR firebaseConfig HERE
+    const firebaseConfig = {
+  apiKey: "AIzaSyBGBti5osQ56y6jnqR4cYbKvfJwCd_QGFw",
+  authDomain: "mechat-99b43.firebaseapp.com",
+  projectId: "mechat-99b43",
+  storageBucket: "mechat-99b43.firebasestorage.app",
+  messagingSenderId: "779239079350",
+  appId: "1:779239079350:web:b3d2d55d5d8d39220d1517"
+};
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    console.log("Firebase Connected Successfully 🔥");
+
+  </script>
+
+</body>
+</html>
