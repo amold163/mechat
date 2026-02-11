@@ -17,7 +17,7 @@
       background: white;
       padding: 25px;
       border-radius: 10px;
-      width: 300px;
+      width: 320px;
       box-shadow: 0 5px 20px rgba(0,0,0,0.1);
     }
 
@@ -79,10 +79,19 @@
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } 
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, setDoc } 
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { 
+  getAuth, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+import { 
+  getFirestore, 
+  doc, 
+  setDoc, 
+  getDoc 
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBGBti5osQ56y6jnqR4cYbKvfJwCd_QGFw",
@@ -95,15 +104,11 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-  onAuthStateChanged(auth, (user) => {
-  if (user) {
-    window.location.href = "chat.html";
-  }
-});
 const db = getFirestore(app);
 
 let isLogin = false;
 
+// Toggle register/login
 window.toggleForm = function() {
   isLogin = !isLogin;
 
@@ -112,12 +117,13 @@ window.toggleForm = function() {
     isLogin ? "Don't have an account? Register" : "Already have an account? Login";
 
   document.getElementById("username").style.display = isLogin ? "none" : "block";
-}
+};
 
+// Submit form
 window.submitForm = async function() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-  const username = document.getElementById("username").value;
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+  const username = document.getElementById("username").value.trim();
   const errorMsg = document.getElementById("errorMsg");
 
   errorMsg.innerText = "";
@@ -125,22 +131,38 @@ window.submitForm = async function() {
   try {
     if (isLogin) {
       await signInWithEmailAndPassword(auth, email, password);
-      window.location.href = "chat.html";
     } else {
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
 
       await setDoc(doc(db, "users", userCred.user.uid), {
-        username: username,
+        username: username || email.split("@")[0],
         email: email,
         createdAt: new Date()
       });
-
-      window.location.href = "chat.html";
     }
   } catch (error) {
     errorMsg.innerText = error.message;
   }
 };
+
+// Auto-auth check + self-healing user creation
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+
+    const userRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) {
+      await setDoc(userRef, {
+        username: user.email.split("@")[0],
+        email: user.email,
+        createdAt: new Date()
+      });
+    }
+
+    window.location.href = "chat.html";
+  }
+});
 
 </script>
 
