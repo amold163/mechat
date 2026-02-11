@@ -3,21 +3,88 @@
 <head>
   <title>MeChat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f2f2;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .card {
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      width: 300px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+
+    .toggle {
+      text-align: center;
+      margin-top: 10px;
+      color: blue;
+      cursor: pointer;
+    }
+
+    .error {
+      color: red;
+      font-size: 14px;
+      text-align: center;
+    }
+  </style>
 </head>
 <body>
 
-  <h2>MeChat Loading...</h2>
+<div class="card">
+  <h2 id="formTitle">Register</h2>
 
-  <!-- Firebase SDK -->
-  <script type="module">
-    
-    // Import Firebase
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  <input type="text" id="username" placeholder="Username">
+  <input type="email" id="email" placeholder="Email">
+  <input type="password" id="password" placeholder="Password">
 
-    // 🔥 PASTE YOUR firebaseConfig HERE
-    const firebaseConfig = {
+  <button onclick="submitForm()">Submit</button>
+
+  <div class="error" id="errorMsg"></div>
+
+  <div class="toggle" onclick="toggleForm()">
+    Already have an account? Login
+  </div>
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, setDoc } 
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
   apiKey: "AIzaSyBGBti5osQ56y6jnqR4cYbKvfJwCd_QGFw",
   authDomain: "mechat-99b43.firebaseapp.com",
   projectId: "mechat-99b43",
@@ -25,14 +92,52 @@
   messagingSenderId: "779239079350",
   appId: "1:779239079350:web:b3d2d55d5d8d39220d1517"
 };
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
 
-    console.log("Firebase Connected Successfully 🔥");
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-  </script>
+let isLogin = false;
+
+window.toggleForm = function() {
+  isLogin = !isLogin;
+
+  document.getElementById("formTitle").innerText = isLogin ? "Login" : "Register";
+  document.querySelector(".toggle").innerText = 
+    isLogin ? "Don't have an account? Register" : "Already have an account? Login";
+
+  document.getElementById("username").style.display = isLogin ? "none" : "block";
+}
+
+window.submitForm = async function() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  const username = document.getElementById("username").value;
+  const errorMsg = document.getElementById("errorMsg");
+
+  errorMsg.innerText = "";
+
+  try {
+    if (isLogin) {
+      await signInWithEmailAndPassword(auth, email, password);
+      alert("Login successful!");
+    } else {
+      const userCred = await createUserWithEmailAndPassword(auth, email, password);
+
+      await setDoc(doc(db, "users", userCred.user.uid), {
+        username: username,
+        email: email,
+        createdAt: new Date()
+      });
+
+      alert("Registration successful!");
+    }
+  } catch (error) {
+    errorMsg.innerText = error.message;
+  }
+};
+
+</script>
 
 </body>
 </html>
