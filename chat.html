@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MeChat - Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial;
+      margin: 0;
+      background: #f2f2f2;
+    }
+
+    .header {
+      background: #4CAF50;
+      color: white;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    button {
+      background: white;
+      color: #4CAF50;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+
+    .content {
+      padding: 20px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>MeChat</div>
+  <button onclick="logout()">Logout</button>
+</div>
+
+<div class="content">
+  <h2>Welcome to MeChat 🎉</h2>
+  <p id="userInfo"></p>
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signOut, onAuthStateChanged } 
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBGBti5osQ56y6jnqR4cYbKvfJwCd_QGFw",
+  authDomain: "mechat-99b43.firebaseapp.com",
+  projectId: "mechat-99b43",
+  storageBucket: "mechat-99b43.firebasestorage.app",
+  messagingSenderId: "779239079350",
+  appId: "1:779239079350:web:b3d2d55d5d8d39220d1517"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+window.logout = async function() {
+  await signOut(auth);
+  window.location.href = "index.html";
+};
+
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    window.location.href = "index.html";
+  } else {
+    document.getElementById("userInfo").innerText = 
+      "Logged in as: " + user.email;
+  }
+});
+
+</script>
+
+</body>
+</html>
