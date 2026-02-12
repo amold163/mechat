@@ -137,6 +137,7 @@
 </div>
 
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
@@ -150,7 +151,8 @@ import {
   query,
   where,
   onSnapshot,
-  orderBy
+  orderBy,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -161,7 +163,6 @@ const firebaseConfig = {
   messagingSenderId: "779239079350",
   appId: "1:779239079350:web:b3d2d55d5d8d39220d1517"
 };
-
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -174,6 +175,7 @@ let unsubscribeMessages = null;
 function encrypt(text) {
   return btoa(text);
 }
+
 function decrypt(text) {
   return atob(text);
 }
@@ -185,50 +187,16 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   currentUser = user;
-  loadUsers();
+
   loadChats();
+  loadUsers();
 });
 
 window.logout = function() {
   signOut(auth);
 };
 
-// Load Users
-async function loadUsers() {
-  const usersContainer = document.getElementById("usersContainer");
-  usersContainer.innerHTML = "";
-
-  const snapshot = await getDocs(collection(db, "users"));
-
-  snapshot.forEach(docSnap => {
-    if (docSnap.id !== currentUser.uid) {
-      const user = docSnap.data();
-
-      const div = document.createElement("div");
-      div.className = "user-item";
-      div.textContent = user.username;
-
-      div.onclick = () => startChat(docSnap.id);
-
-      usersContainer.appendChild(div);
-    }
-  });
-}
-
-// Start Chat
-async function startChat(userId) {
-  const chatId = [currentUser.uid, userId].sort().join("_");
-  currentChatId = chatId;
-
-  await setDoc(doc(db, "chats", chatId), {
-    participants: [currentUser.uid, userId],
-    lastUpdated: new Date()
-  }, { merge: true });
-
-  openChat();
-}
-
-// Load Existing Chats
+// LOAD EXISTING CHATS
 function loadChats() {
   const chatsContainer = document.getElementById("chatsContainer");
 
@@ -240,7 +208,7 @@ function loadChats() {
   onSnapshot(q, async (snapshot) => {
     chatsContainer.innerHTML = "";
 
-    snapshot.forEach(async (docSnap) => {
+    for (const docSnap of snapshot.docs) {
       const chatId = docSnap.id;
       const participants = docSnap.data().participants;
       const otherUserId = participants.find(p => p !== currentUser.uid);
@@ -262,11 +230,59 @@ function loadChats() {
       };
 
       chatsContainer.appendChild(div);
-    });
+    }
   });
 }
 
-// Open Chat
+// LOAD USERS WITHOUT CHAT
+async function loadUsers() {
+  const usersContainer = document.getElementById("usersContainer");
+  usersContainer.innerHTML = "";
+
+  const chatSnapshot = await getDocs(
+    query(collection(db, "chats"),
+    where("participants", "array-contains", currentUser.uid))
+  );
+
+  const existingChatUsers = new Set();
+
+  chatSnapshot.forEach(docSnap => {
+    const participants = docSnap.data().participants;
+    const otherUser = participants.find(p => p !== currentUser.uid);
+    existingChatUsers.add(otherUser);
+  });
+
+  const snapshot = await getDocs(collection(db, "users"));
+
+  snapshot.forEach(docSnap => {
+    if (docSnap.id !== currentUser.uid && !existingChatUsers.has(docSnap.id)) {
+      const user = docSnap.data();
+
+      const div = document.createElement("div");
+      div.className = "user-item";
+      div.textContent = user.username;
+
+      div.onclick = () => startChat(docSnap.id);
+
+      usersContainer.appendChild(div);
+    }
+  });
+}
+
+// START CHAT
+async function startChat(userId) {
+  const chatId = [currentUser.uid, userId].sort().join("_");
+  currentChatId = chatId;
+
+  await setDoc(doc(db, "chats", chatId), {
+    participants: [currentUser.uid, userId],
+    lastUpdated: serverTimestamp()
+  }, { merge: true });
+
+  openChat();
+}
+
+// OPEN CHAT
 function openChat() {
   if (!currentChatId) return;
 
@@ -286,6 +302,8 @@ function openChat() {
     snapshot.forEach(docSnap => {
       const msg = docSnap.data();
 
+      if (!msg.timestamp) return;
+
       if (msg.senderId !== currentUser.uid && !msg.seen) {
         setDoc(doc(db, "chats", currentChatId, "messages", docSnap.id), {
           seen: true
@@ -302,11 +320,10 @@ function openChat() {
       }
 
       const text = decrypt(msg.text);
-
-      const time = msg.timestamp
-        ? new Date(msg.timestamp.seconds * 1000)
-            .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : "";
+      const time = msg.timestamp.toDate().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
 
       div.innerHTML = `
         <div>${text}</div>
@@ -323,7 +340,7 @@ function openChat() {
   });
 }
 
-// Send Message
+// SEND MESSAGE
 document.getElementById("sendBtn").onclick = async () => {
   const input = document.getElementById("messageInput");
   const text = input.value.trim();
@@ -333,16 +350,17 @@ document.getElementById("sendBtn").onclick = async () => {
   await addDoc(collection(db, "chats", currentChatId, "messages"), {
     senderId: currentUser.uid,
     text: encrypt(text),
-    timestamp: new Date(),
+    timestamp: serverTimestamp(),
     seen: false
   });
 
   await setDoc(doc(db, "chats", currentChatId), {
-    lastUpdated: new Date()
+    lastUpdated: serverTimestamp()
   }, { merge: true });
 
   input.value = "";
 };
+
 </script>
 
 </body>
