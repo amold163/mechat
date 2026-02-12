@@ -25,16 +25,28 @@
       padding: 15px;
     }
 
-    .card {
-      background: #e0e0e0;
-      padding: 15px;
+    .chatCard {
+      background: white;
+      padding: 12px;
       margin-bottom: 10px;
-      border-radius: 12px;
+      border-radius: 10px;
       cursor: pointer;
     }
 
+    .chatHeader {
+      display: flex;
+      justify-content: space-between;
+      font-weight: bold;
+    }
+
+    .chatPreview {
+      font-size: 13px;
+      color: gray;
+      margin-top: 4px;
+    }
+
     .chatBox {
-      background: #d7ccc8;
+      background: #e5ddd5;
       height: 300px;
       overflow-y: auto;
       padding: 10px;
@@ -146,7 +158,6 @@ auth.onAuthStateChanged(user => {
     window.location.href = "index.html";
     return;
   }
-
   currentUser = user;
   loadChats();
 });
@@ -159,31 +170,37 @@ function loadChats() {
 
   db.collection("chats")
     .where("participants", "array-contains", currentUser.uid)
+    .orderBy("lastTimestamp", "desc")
     .onSnapshot(async snapshot => {
 
       let html = "";
 
       for (const doc of snapshot.docs) {
 
-        const participants = doc.data().participants;
-        const otherUid = participants.find(p => p !== currentUser.uid);
+        const data = doc.data();
+        if (!data.lastMessage) continue;
 
-        const messagesSnap = await db.collection("chats")
-          .doc(doc.id)
-          .collection("messages")
-          .limit(1)
-          .get();
-
-        if (messagesSnap.empty) continue; // only show chats with messages
+        const otherUid = data.participants.find(p => p !== currentUser.uid);
 
         const userDoc = await db.collection("users").doc(otherUid).get();
         if (!userDoc.exists) continue;
 
         const username = userDoc.data().username;
 
+        const time = data.lastTimestamp
+          ? data.lastTimestamp.toDate().toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+          : "";
+
         html += `
-          <div class="card" onclick="openChat('${doc.id}', '${username}')">
-            ${username}
+          <div class="chatCard" onclick="openChat('${doc.id}', '${username}')">
+            <div class="chatHeader">
+              <span>${username}</span>
+              <span style="font-size:12px;">${time}</span>
+            </div>
+            <div class="chatPreview">${data.lastMessage}</div>
           </div>
         `;
       }
@@ -204,7 +221,7 @@ function searchUser() {
 
       if (snapshot.empty) {
         document.getElementById("searchResult").innerHTML =
-          "<div class='card'>User not found</div>";
+          "<div class='chatCard'>User not found</div>";
         return;
       }
 
@@ -212,12 +229,12 @@ function searchUser() {
 
       if (doc.id === currentUser.uid) {
         document.getElementById("searchResult").innerHTML =
-          "<div class='card'>You cannot message yourself</div>";
+          "<div class='chatCard'>You cannot message yourself</div>";
         return;
       }
 
       document.getElementById("searchResult").innerHTML = `
-        <div class="card" onclick="startChat('${doc.id}', '${doc.data().username}')">
+        <div class="chatCard" onclick="startChat('${doc.id}', '${doc.data().username}')">
           ${doc.data().username}
         </div>
       `;
@@ -226,29 +243,13 @@ function searchUser() {
 
 function startChat(otherUid, username) {
 
-  db.collection("chats")
-    .where("participants", "array-contains", currentUser.uid)
-    .get()
-    .then(snapshot => {
+  const chatId = [currentUser.uid, otherUid].sort().join("_");
 
-      let existingChat = null;
+  db.collection("chats").doc(chatId).set({
+    participants: [currentUser.uid, otherUid]
+  }, { merge: true });
 
-      snapshot.forEach(doc => {
-        if (doc.data().participants.includes(otherUid)) {
-          existingChat = doc.id;
-        }
-      });
-
-      if (existingChat) {
-        openChat(existingChat, username);
-      } else {
-        db.collection("chats").add({
-          participants: [currentUser.uid, otherUid]
-        }).then(docRef => {
-          openChat(docRef.id, username);
-        });
-      }
-    });
+  openChat(chatId, username);
 }
 
 function openChat(chatId, username) {
@@ -291,14 +292,19 @@ function sendMessage() {
   const text = document.getElementById("messageInput").value.trim();
   if (!text || !currentChatId) return;
 
-  db.collection("chats")
-    .doc(currentChatId)
-    .collection("messages")
-    .add({
-      text: text,
-      sender: currentUser.uid,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    });
+  const chatRef = db.collection("chats").doc(currentChatId);
+
+  chatRef.collection("messages").add({
+    text: text,
+    sender: currentUser.uid,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  chatRef.set({
+    lastMessage: text,
+    lastSender: currentUser.uid,
+    lastTimestamp: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
 
   document.getElementById("messageInput").value = "";
 }
