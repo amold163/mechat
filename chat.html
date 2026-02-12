@@ -9,6 +9,9 @@
       margin: 0;
       font-family: Arial, sans-serif;
       background: #e5ddd5;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
     }
 
     header {
@@ -19,13 +22,6 @@
       justify-content: space-between;
       align-items: center;
       font-weight: bold;
-    }
-
-    button {
-      border: none;
-      padding: 8px 12px;
-      border-radius: 6px;
-      cursor: pointer;
     }
 
     .section {
@@ -47,8 +43,8 @@
     }
 
     #chatSection {
+      flex: 1;
       display: none;
-      height: 100vh;
       flex-direction: column;
     }
 
@@ -107,6 +103,9 @@
       background: #4CAF50;
       color: white;
       border-radius: 20px;
+      border: none;
+      padding: 8px 15px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -169,11 +168,12 @@ const db = getFirestore(app);
 
 let currentUser;
 let currentChatId = null;
+let unsubscribeMessages = null;
 
+// Simple encryption
 function encrypt(text) {
   return btoa(text);
 }
-
 function decrypt(text) {
   return atob(text);
 }
@@ -193,7 +193,7 @@ window.logout = function() {
   signOut(auth);
 };
 
-// Load all users
+// Load Users
 async function loadUsers() {
   const usersContainer = document.getElementById("usersContainer");
   usersContainer.innerHTML = "";
@@ -208,15 +208,15 @@ async function loadUsers() {
       div.className = "user-item";
       div.textContent = user.username;
 
-      div.onclick = () => startChat(docSnap.id, user.username);
+      div.onclick = () => startChat(docSnap.id);
 
       usersContainer.appendChild(div);
     }
   });
 }
 
-// Start chat
-async function startChat(userId, username) {
+// Start Chat
+async function startChat(userId) {
   const chatId = [currentUser.uid, userId].sort().join("_");
   currentChatId = chatId;
 
@@ -228,20 +228,19 @@ async function startChat(userId, username) {
   openChat();
 }
 
-// Load existing chats
+// Load Existing Chats
 function loadChats() {
   const chatsContainer = document.getElementById("chatsContainer");
 
   const q = query(
     collection(db, "chats"),
-    where("participants", "array-contains", currentUser.uid),
-    orderBy("lastUpdated", "desc")
+    where("participants", "array-contains", currentUser.uid)
   );
 
   onSnapshot(q, async (snapshot) => {
     chatsContainer.innerHTML = "";
 
-    for (const docSnap of snapshot.docs) {
+    snapshot.forEach(async (docSnap) => {
       const chatId = docSnap.id;
       const participants = docSnap.data().participants;
       const otherUserId = participants.find(p => p !== currentUser.uid);
@@ -263,23 +262,25 @@ function loadChats() {
       };
 
       chatsContainer.appendChild(div);
-    }
+    });
   });
 }
 
-// Open chat
+// Open Chat
 function openChat() {
   if (!currentChatId) return;
 
   document.getElementById("chatSection").style.display = "flex";
   const messagesDiv = document.getElementById("messages");
 
+  if (unsubscribeMessages) unsubscribeMessages();
+
   const q = query(
     collection(db, "chats", currentChatId, "messages"),
     orderBy("timestamp")
   );
 
-  onSnapshot(q, snapshot => {
+  unsubscribeMessages = onSnapshot(q, snapshot => {
     messagesDiv.innerHTML = "";
 
     snapshot.forEach(docSnap => {
@@ -301,6 +302,7 @@ function openChat() {
       }
 
       const text = decrypt(msg.text);
+
       const time = msg.timestamp
         ? new Date(msg.timestamp.seconds * 1000)
             .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -321,7 +323,7 @@ function openChat() {
   });
 }
 
-// Send message
+// Send Message
 document.getElementById("sendBtn").onclick = async () => {
   const input = document.getElementById("messageInput");
   const text = input.value.trim();
