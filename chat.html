@@ -120,7 +120,9 @@ import {
   addDoc, 
   query, 
   orderBy, 
-  onSnapshot 
+  onSnapshot,
+  doc,
+  setDoc
 }
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -137,7 +139,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// 🔐 Shared Secret Key (Basic Encryption)
 const SECRET_KEY = "MeChatSuperSecretKey123";
 
 let currentUser = null;
@@ -150,7 +151,7 @@ window.logout = async function() {
   window.location.href = "index.html";
 };
 
-// Generate unique chat ID
+// Generate chat ID
 function getChatId(uid1, uid2) {
   return uid1 < uid2 ? uid1 + "_" + uid2 : uid2 + "_" + uid1;
 }
@@ -177,7 +178,6 @@ function openChat(username, userId) {
       const msg = docSnap.data();
 
       let decryptedText = "";
-
       try {
         const bytes = CryptoJS.AES.decrypt(msg.text, SECRET_KEY);
         decryptedText = bytes.toString(CryptoJS.enc.Utf8);
@@ -202,7 +202,7 @@ function openChat(username, userId) {
   });
 }
 
-// Send encrypted message
+// Send encrypted message + update chat document
 window.sendMessage = async function() {
   const input = document.getElementById("messageInput");
   const text = input.value.trim();
@@ -213,11 +213,19 @@ window.sendMessage = async function() {
 
   const encrypted = CryptoJS.AES.encrypt(text, SECRET_KEY).toString();
 
+  // Add message
   await addDoc(collection(db, "chats", chatId, "messages"), {
     senderId: currentUser.uid,
     text: encrypted,
     timestamp: new Date()
   });
+
+  // Update chat metadata
+  await setDoc(doc(db, "chats", chatId), {
+    participants: [currentUser.uid, selectedUserId],
+    lastMessage: encrypted,
+    lastUpdated: new Date()
+  }, { merge: true });
 
   input.value = "";
 };
