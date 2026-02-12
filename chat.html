@@ -4,14 +4,16 @@
   <title>MeChat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
   <style>
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: #e5ddd5;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
+      font-family: Arial;
+      background: #f4f4f4;
     }
 
     header {
@@ -21,141 +23,104 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-weight: bold;
     }
 
-    .section {
-      background: white;
+    button {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 5px;
+      background: #4CAF50;
+      color: white;
+    }
+
+    .container {
       padding: 15px;
-      border-bottom: 1px solid #ddd;
     }
 
-    .user-item {
-      padding: 10px;
+    .chat-list div {
+      background: #e0e0e0;
+      padding: 12px;
       margin-bottom: 8px;
-      background: #f1f1f1;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
     }
 
-    .user-item:hover {
-      background: #e0e0e0;
-    }
-
-    #chatSection {
-      flex: 1;
-      display: none;
-      flex-direction: column;
-    }
-
-    #messages {
-      flex: 1;
-      padding: 15px;
+    .messages {
+      height: 300px;
       overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+      background: #ddd;
+      padding: 10px;
+      border-radius: 10px;
+      margin-top: 10px;
     }
 
-    .message {
+    .msg {
       max-width: 70%;
-      padding: 8px 12px;
-      border-radius: 14px;
+      padding: 8px;
+      margin-bottom: 8px;
+      border-radius: 10px;
       font-size: 14px;
-      word-wrap: break-word;
     }
 
     .sent {
-      background: #dcf8c6;
-      align-self: flex-end;
-      border-bottom-right-radius: 4px;
+      background: #c8f7c5;
+      margin-left: auto;
+      text-align: right;
     }
 
     .received {
-      background: white;
-      align-self: flex-start;
-      border-bottom-left-radius: 4px;
+      background: #fff;
+      margin-right: auto;
     }
 
-    .meta {
-      font-size: 10px;
-      margin-top: 4px;
-      text-align: right;
-      color: #555;
-    }
-
-    #inputArea {
+    .input-box {
       display: flex;
-      padding: 10px;
-      background: white;
-      border-top: 1px solid #ccc;
+      margin-top: 10px;
     }
 
-    #messageInput {
+    .input-box input {
       flex: 1;
       padding: 10px;
       border-radius: 20px;
       border: 1px solid #ccc;
     }
 
-    #sendBtn {
-      margin-left: 8px;
-      background: #4CAF50;
-      color: white;
+    .input-box button {
+      margin-left: 10px;
       border-radius: 20px;
-      border: none;
-      padding: 8px 15px;
-      cursor: pointer;
     }
   </style>
 </head>
-
 <body>
 
 <header>
-  🔐 MeChat
+  <div>🔒 MeChat</div>
   <button onclick="logout()">Logout</button>
 </header>
 
-<div class="section">
-  <h3>Your Chats</h3>
-  <div id="chatsContainer"></div>
-</div>
+<div class="container">
 
-<div class="section">
+  <h2>Your Chats</h2>
+  <div class="chat-list" id="chatList"></div>
+
   <h3>Start New Chat</h3>
-  <div id="usersContainer"></div>
-</div>
+  <div class="chat-list" id="userList"></div>
 
-<div id="chatSection">
-  <div id="messages"></div>
+  <hr>
 
-  <div id="inputArea">
+  <h3 id="chatWith"></h3>
+  <div class="messages" id="messages"></div>
+
+  <div class="input-box">
     <input type="text" id="messageInput" placeholder="Type message...">
-    <button id="sendBtn">Send</button>
+    <button onclick="sendMessage()">Send</button>
   </div>
+
 </div>
 
-<script type="module">
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  doc,
-  setDoc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  onSnapshot,
-  orderBy,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-const firebaseConfig = {
+<script>
+  // 🔥 YOUR FIREBASE CONFIG
+  const firebaseConfig = {
   apiKey: "AIzaSyBGBti5osQ56y6jnqR4cYbKvfJwCd_QGFw",
   authDomain: "mechat-99b43.firebaseapp.com",
   projectId: "mechat-99b43",
@@ -164,204 +129,149 @@ const firebaseConfig = {
   appId: "1:779239079350:web:b3d2d55d5d8d39220d1517"
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+  firebase.initializeApp(firebaseConfig);
 
-let currentUser;
-let currentChatId = null;
-let unsubscribeMessages = null;
+  const auth = firebase.auth();
+  const db = firebase.firestore();
 
-// Simple encryption
-function encrypt(text) {
-  return btoa(text);
-}
+  const SECRET_KEY = "mechat-secret";
 
-function decrypt(text) {
-  return atob(text);
-}
+  let currentUser;
+  let selectedUser = null;
+  let unsubscribe = null;
 
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    window.location.href = "index.html";
-    return;
+  // SAFE DECRYPT
+  function decrypt(text) {
+    try {
+      const bytes = CryptoJS.AES.decrypt(text, SECRET_KEY);
+      const result = bytes.toString(CryptoJS.enc.Utf8);
+      return result ? result : text;
+    } catch {
+      return text;
+    }
   }
 
-  currentUser = user;
+  function encrypt(text) {
+    return CryptoJS.AES.encrypt(text, SECRET_KEY).toString();
+  }
 
-  loadChats();
-  loadUsers();
-});
-
-window.logout = function() {
-  signOut(auth);
-};
-
-// LOAD EXISTING CHATS
-function loadChats() {
-  const chatsContainer = document.getElementById("chatsContainer");
-
-  const q = query(
-    collection(db, "chats"),
-    where("participants", "array-contains", currentUser.uid)
-  );
-
-  onSnapshot(q, async (snapshot) => {
-    chatsContainer.innerHTML = "";
-
-    for (const docSnap of snapshot.docs) {
-      const chatId = docSnap.id;
-      const participants = docSnap.data().participants;
-      const otherUserId = participants.find(p => p !== currentUser.uid);
-
-      const userDoc = await getDoc(doc(db, "users", otherUserId));
-      let username = otherUserId;
-
-      if (userDoc.exists()) {
-        username = userDoc.data().username;
-      }
-
-      const div = document.createElement("div");
-      div.className = "user-item";
-      div.textContent = username;
-
-      div.onclick = () => {
-        currentChatId = chatId;
-        openChat();
-      };
-
-      chatsContainer.appendChild(div);
+  auth.onAuthStateChanged(user => {
+    if (!user) {
+      window.location.href = "index.html";
+    } else {
+      currentUser = user;
+      loadUsers();
+      loadChatList();
     }
   });
-}
 
-// LOAD USERS WITHOUT CHAT
-async function loadUsers() {
-  const usersContainer = document.getElementById("usersContainer");
-  usersContainer.innerHTML = "";
+  function logout() {
+    auth.signOut();
+  }
 
-  const chatSnapshot = await getDocs(
-    query(collection(db, "chats"),
-    where("participants", "array-contains", currentUser.uid))
-  );
+  function getChatId(uid1, uid2) {
+    return uid1 < uid2 ? uid1 + "_" + uid2 : uid2 + "_" + uid1;
+  }
 
-  const existingChatUsers = new Set();
+  function loadUsers() {
+    db.collection("users").get().then(snapshot => {
+      const list = document.getElementById("userList");
+      list.innerHTML = "";
 
-  chatSnapshot.forEach(docSnap => {
-    const participants = docSnap.data().participants;
-    const otherUser = participants.find(p => p !== currentUser.uid);
-    existingChatUsers.add(otherUser);
-  });
+      snapshot.forEach(doc => {
+        if (doc.id !== currentUser.uid) {
+          const div = document.createElement("div");
+          div.innerText = doc.data().username;
+          div.onclick = () => openChat(doc.id, doc.data().username);
+          list.appendChild(div);
+        }
+      });
+    });
+  }
 
-  const snapshot = await getDocs(collection(db, "users"));
+  function loadChatList() {
+    db.collection("chats")
+      .where("participants", "array-contains", currentUser.uid)
+      .onSnapshot(snapshot => {
 
-  snapshot.forEach(docSnap => {
-    if (docSnap.id !== currentUser.uid && !existingChatUsers.has(docSnap.id)) {
-      const user = docSnap.data();
+        const chatList = document.getElementById("chatList");
+        chatList.innerHTML = "";
 
-      const div = document.createElement("div");
-      div.className = "user-item";
-      div.textContent = user.username;
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const otherId = data.participants.find(id => id !== currentUser.uid);
 
-      div.onclick = () => startChat(docSnap.id);
+          db.collection("users").doc(otherId).get().then(userDoc => {
+            const div = document.createElement("div");
+            div.innerText = userDoc.data().username;
+            div.onclick = () => openChat(otherId, userDoc.data().username);
+            chatList.appendChild(div);
+          });
+        });
 
-      usersContainer.appendChild(div);
-    }
-  });
-}
+      });
+  }
 
-// START CHAT
-async function startChat(userId) {
-  const chatId = [currentUser.uid, userId].sort().join("_");
-  currentChatId = chatId;
+  function openChat(uid, username) {
+    selectedUser = uid;
+    document.getElementById("chatWith").innerText = "Chat with " + username;
 
-  await setDoc(doc(db, "chats", chatId), {
-    participants: [currentUser.uid, userId],
-    lastUpdated: serverTimestamp()
-  }, { merge: true });
+    const chatId = getChatId(currentUser.uid, uid);
 
-  openChat();
-}
+    if (unsubscribe) unsubscribe();
 
-// OPEN CHAT
-function openChat() {
-  if (!currentChatId) return;
+    unsubscribe = db.collection("chats")
+      .doc(chatId)
+      .collection("messages")
+      .orderBy("timestamp")
+      .onSnapshot(snapshot => {
 
-  document.getElementById("chatSection").style.display = "flex";
-  const messagesDiv = document.getElementById("messages");
+        const messagesDiv = document.getElementById("messages");
+        messagesDiv.innerHTML = "";
 
-  if (unsubscribeMessages) unsubscribeMessages();
+        snapshot.forEach(doc => {
+          const msg = doc.data();
+          const div = document.createElement("div");
+          div.classList.add("msg");
 
-  const q = query(
-    collection(db, "chats", currentChatId, "messages"),
-    orderBy("timestamp")
-  );
+          const decrypted = decrypt(msg.text);
+          div.innerText = decrypted;
 
-  unsubscribeMessages = onSnapshot(q, snapshot => {
-    messagesDiv.innerHTML = "";
+          if (msg.sender === currentUser.uid) {
+            div.classList.add("sent");
+          } else {
+            div.classList.add("received");
+          }
 
-    snapshot.forEach(docSnap => {
-      const msg = docSnap.data();
+          messagesDiv.appendChild(div);
+        });
 
-      if (!msg.timestamp) return;
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      });
+  }
 
-      if (msg.senderId !== currentUser.uid && !msg.seen) {
-        setDoc(doc(db, "chats", currentChatId, "messages", docSnap.id), {
-          seen: true
-        }, { merge: true });
-      }
+  function sendMessage() {
+    const input = document.getElementById("messageInput");
+    const text = input.value.trim();
+    if (!text || !selectedUser) return;
 
-      const div = document.createElement("div");
-      div.classList.add("message");
+    const chatId = getChatId(currentUser.uid, selectedUser);
 
-      if (msg.senderId === currentUser.uid) {
-        div.classList.add("sent");
-      } else {
-        div.classList.add("received");
-      }
+    db.collection("chats").doc(chatId).set({
+      participants: [currentUser.uid, selectedUser]
+    }, { merge: true });
 
-      const text = decrypt(msg.text);
-      const time = msg.timestamp.toDate().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
+    db.collection("chats")
+      .doc(chatId)
+      .collection("messages")
+      .add({
+        text: encrypt(text),
+        sender: currentUser.uid,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      div.innerHTML = `
-        <div>${text}</div>
-        <div class="meta">
-          ${time}
-          ${msg.senderId === currentUser.uid ? (msg.seen ? " ✔✔" : " ✔") : ""}
-        </div>
-      `;
-
-      messagesDiv.appendChild(div);
-    });
-
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-  });
-}
-
-// SEND MESSAGE
-document.getElementById("sendBtn").onclick = async () => {
-  const input = document.getElementById("messageInput");
-  const text = input.value.trim();
-
-  if (!text || !currentChatId) return;
-
-  await addDoc(collection(db, "chats", currentChatId, "messages"), {
-    senderId: currentUser.uid,
-    text: encrypt(text),
-    timestamp: serverTimestamp(),
-    seen: false
-  });
-
-  await setDoc(doc(db, "chats", currentChatId), {
-    lastUpdated: serverTimestamp()
-  }, { merge: true });
-
-  input.value = "";
-};
-
+    input.value = "";
+  }
 </script>
 
 </body>
