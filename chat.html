@@ -1,100 +1,94 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>MeChat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>MeChat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f2f2f2;
-    }
+<style>
+body { margin:0; font-family:Arial; background:#f2f2f2; }
 
-    .header {
-      background: #4CAF50;
-      color: white;
-      padding: 15px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+.header {
+  background:#4CAF50;
+  color:white;
+  padding:15px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
 
-    .section {
-      padding: 15px;
-    }
+.section { padding:15px; }
 
-    .chatCard {
-      background: white;
-      padding: 12px;
-      margin-bottom: 10px;
-      border-radius: 10px;
-      cursor: pointer;
-    }
+.chatCard {
+  background:white;
+  padding:12px;
+  margin-bottom:10px;
+  border-radius:10px;
+  cursor:pointer;
+}
 
-    .chatHeader {
-      display: flex;
-      justify-content: space-between;
-      font-weight: bold;
-    }
+.chatHeader {
+  display:flex;
+  justify-content:space-between;
+  font-weight:bold;
+}
 
-    .chatPreview {
-      font-size: 13px;
-      color: gray;
-      margin-top: 4px;
-    }
+.chatPreview {
+  font-size:13px;
+  color:gray;
+  margin-top:4px;
+}
 
-    .chatBox {
-      background: #e5ddd5;
-      height: 300px;
-      overflow-y: auto;
-      padding: 10px;
-      border-radius: 12px;
-      margin-top: 10px;
-    }
+.chatBox {
+  background:#e5ddd5;
+  height:300px;
+  overflow-y:auto;
+  padding:10px;
+  border-radius:12px;
+  margin-top:10px;
+}
 
-    .message {
-      max-width: 70%;
-      padding: 8px 12px;
-      margin-bottom: 10px;
-      border-radius: 12px;
-      font-size: 14px;
-      word-wrap: break-word;
-    }
+.message {
+  max-width:70%;
+  padding:8px 12px;
+  margin-bottom:10px;
+  border-radius:12px;
+  font-size:14px;
+  word-wrap:break-word;
+}
 
-    .sent {
-      background: #c8e6c9;
-      margin-left: auto;
-    }
+.sent {
+  background:#c8e6c9;
+  margin-left:auto;
+}
 
-    .received {
-      background: white;
-      margin-right: auto;
-    }
+.received {
+  background:white;
+  margin-right:auto;
+}
 
-    .inputArea {
-      display: flex;
-      margin-top: 10px;
-    }
+.inputArea {
+  display:flex;
+  margin-top:10px;
+}
 
-    input {
-      flex: 1;
-      padding: 10px;
-      border-radius: 20px;
-      border: 1px solid #ccc;
-    }
+input {
+  flex:1;
+  padding:10px;
+  border-radius:20px;
+  border:1px solid #ccc;
+}
 
-    button {
-      margin-left: 8px;
-      padding: 10px 15px;
-      border-radius: 20px;
-      border: none;
-      background: #4CAF50;
-      color: white;
-      cursor: pointer;
-    }
-  </style>
+button {
+  margin-left:8px;
+  padding:10px 15px;
+  border-radius:20px;
+  border:none;
+  background:#4CAF50;
+  color:white;
+  cursor:pointer;
+}
+</style>
 </head>
 <body>
 
@@ -105,26 +99,25 @@
 
 <div class="section">
 
-  <h2>Your Chats</h2>
-  <div id="chatList"></div>
+<h2>Your Chats</h2>
+<div id="chatList"></div>
 
-  <h3>Start New Chat</h3>
-  <div style="display:flex; gap:8px; margin-bottom:10px;">
-    <input type="text" id="searchUsername" placeholder="Enter exact username">
-    <button onclick="searchUser()">Search</button>
+<h3>Start New Chat</h3>
+<div style="display:flex; gap:8px; margin-bottom:10px;">
+  <input type="text" id="searchUsername" placeholder="Enter exact username">
+  <button onclick="searchUser()">Search</button>
+</div>
+<div id="searchResult"></div>
+
+<div id="chatSection" style="display:none;">
+  <h3 id="chatWith"></h3>
+  <div class="chatBox" id="messages"></div>
+
+  <div class="inputArea">
+    <input type="text" id="messageInput" placeholder="Type message...">
+    <button onclick="sendMessage()">Send</button>
   </div>
-
-  <div id="searchResult"></div>
-
-  <div id="chatSection" style="display:none;">
-    <h3 id="chatWith"></h3>
-    <div class="chatBox" id="messages"></div>
-
-    <div class="inputArea">
-      <input type="text" id="messageInput" placeholder="Type message...">
-      <button onclick="sendMessage()">Send</button>
-    </div>
-  </div>
+</div>
 
 </div>
 
@@ -145,7 +138,6 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-
 const auth = firebase.auth();
 const db = firebase.firestore();
 
@@ -166,6 +158,10 @@ function logout() {
   auth.signOut();
 }
 
+function getChatId(uid1, uid2) {
+  return [uid1, uid2].sort().join("_");
+}
+
 function loadChats() {
 
   db.collection("chats")
@@ -178,8 +174,6 @@ function loadChats() {
       for (const doc of snapshot.docs) {
 
         const data = doc.data();
-        if (!data.lastMessage) continue;
-
         const otherUid = data.participants.find(p => p !== currentUser.uid);
 
         const userDoc = await db.collection("users").doc(otherUid).get();
@@ -189,8 +183,8 @@ function loadChats() {
 
         const time = data.lastTimestamp
           ? data.lastTimestamp.toDate().toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit'
+              hour:'2-digit',
+              minute:'2-digit'
             })
           : "";
 
@@ -200,7 +194,7 @@ function loadChats() {
               <span>${username}</span>
               <span style="font-size:12px;">${time}</span>
             </div>
-            <div class="chatPreview">${data.lastMessage}</div>
+            <div class="chatPreview">${data.lastMessage || ""}</div>
           </div>
         `;
       }
@@ -243,11 +237,13 @@ function searchUser() {
 
 function startChat(otherUid, username) {
 
-  const chatId = [currentUser.uid, otherUid].sort().join("_");
+  const chatId = getChatId(currentUser.uid, otherUid);
 
   db.collection("chats").doc(chatId).set({
-    participants: [currentUser.uid, otherUid]
-  }, { merge: true });
+    participants: [currentUser.uid, otherUid],
+    lastMessage: "",
+    lastTimestamp: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge:true });
 
   openChat(chatId, username);
 }
@@ -281,7 +277,6 @@ function openChat(chatId, username) {
       });
 
       document.getElementById("messages").innerHTML = html;
-
       const chatBox = document.getElementById("messages");
       chatBox.scrollTop = chatBox.scrollHeight;
     });
@@ -300,11 +295,10 @@ function sendMessage() {
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
   });
 
-  chatRef.set({
+  chatRef.update({
     lastMessage: text,
-    lastSender: currentUser.uid,
     lastTimestamp: firebase.firestore.FieldValue.serverTimestamp()
-  }, { merge: true });
+  });
 
   document.getElementById("messageInput").value = "";
 }
