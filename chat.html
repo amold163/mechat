@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>MeChat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- Firebase v8 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -12,163 +13,115 @@
   <style>
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #f0f2f5;
+      font-family: Arial, sans-serif;
+      background: #ece5dd;
     }
 
     .header {
-      background: #075E54;
+      background: #4CAF50;
       color: white;
       padding: 15px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-weight: 600;
-      position: sticky;
-      top: 0;
-      z-index: 100;
     }
 
     .container {
       padding: 15px;
-      padding-bottom: 120px;
     }
 
-    .section-title {
-      margin: 20px 0 10px;
-      font-weight: 600;
-      color: #444;
+    h2 {
+      margin-top: 10px;
     }
 
-    .chat-item {
+    .card {
       background: white;
-      padding: 12px 15px;
-      border-radius: 12px;
+      padding: 12px;
+      border-radius: 10px;
       margin-bottom: 10px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
       cursor: pointer;
-      position: relative;
-    }
-
-    .chat-username {
-      font-weight: 600;
-      font-size: 15px;
-    }
-
-    .chat-preview {
-      font-size: 13px;
-      color: gray;
-      margin-top: 3px;
-    }
-
-    .badge {
-      position: absolute;
-      right: 15px;
-      top: 18px;
-      background: #25D366;
-      color: white;
-      font-size: 12px;
-      padding: 3px 8px;
-      border-radius: 20px;
     }
 
     .search-bar {
       display: flex;
-      gap: 8px;
+      margin-bottom: 10px;
     }
 
     .search-bar input {
       flex: 1;
-      padding: 10px 15px;
-      border-radius: 25px;
-      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 20px;
+      border: 1px solid #ccc;
     }
 
     .search-bar button {
+      margin-left: 8px;
       padding: 10px 15px;
-      border-radius: 25px;
       border: none;
-      background: #25D366;
+      border-radius: 20px;
+      background: #4CAF50;
       color: white;
       cursor: pointer;
     }
 
-    .chat-window {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: #efeae2;
-      height: 60%;
-      display: none;
-      flex-direction: column;
-      border-top-left-radius: 20px;
-      border-top-right-radius: 20px;
-      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-    }
-
-    .chat-header {
-      padding: 12px 15px;
-      background: #075E54;
-      color: white;
-      border-top-left-radius: 20px;
-      border-top-right-radius: 20px;
-    }
-
-    #typingIndicator {
-      font-size: 12px;
-      opacity: 0.8;
-      margin-top: 3px;
-    }
-
     .chat-box {
-      flex: 1;
-      padding: 10px;
+      background: #dcd0c4;
+      height: 300px;
       overflow-y: auto;
+      padding: 10px;
+      border-radius: 10px;
+      margin-top: 10px;
     }
 
     .message {
-      max-width: 70%;
       padding: 8px 12px;
       border-radius: 15px;
-      margin: 6px 0;
-      font-size: 14px;
-      clear: both;
+      margin: 5px 0;
+      max-width: 70%;
+      display: inline-block;
+      word-wrap: break-word;
     }
 
     .sent {
       background: #dcf8c6;
+      align-self: flex-end;
       float: right;
-      border-bottom-right-radius: 3px;
+      clear: both;
     }
 
     .received {
       background: white;
       float: left;
-      border-bottom-left-radius: 3px;
+      clear: both;
     }
 
     .input-area {
       display: flex;
-      padding: 10px;
-      background: white;
-      gap: 8px;
+      margin-top: 10px;
     }
 
     .input-area input {
       flex: 1;
-      padding: 10px 15px;
-      border-radius: 25px;
-      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 20px;
+      border: 1px solid #ccc;
     }
 
     .input-area button {
-      background: #25D366;
-      border: none;
-      color: white;
+      margin-left: 8px;
       padding: 10px 15px;
-      border-radius: 25px;
+      border: none;
+      border-radius: 20px;
+      background: #4CAF50;
+      color: white;
       cursor: pointer;
+    }
+
+    #typingIndicator {
+      font-size: 14px;
+      color: gray;
+      margin-top: 5px;
+      display: none;
     }
   </style>
 </head>
@@ -176,200 +129,247 @@
 <body>
 
 <div class="header">
-  🔒 MeChat
-  <button onclick="logout()">Logout</button>
+  <div>🔒 MeChat</div>
+  <div onclick="logout()" style="cursor:pointer;">Logout</div>
 </div>
 
 <div class="container">
 
-  <div class="section-title">Your Chats</div>
+  <h2>Your Chats</h2>
   <div id="chatList"></div>
 
-  <div class="section-title">Start New Chat</div>
+  <h3>Start New Chat</h3>
   <div class="search-bar">
-    <input type="text" id="searchUser" placeholder="Enter username">
+    <input type="text" id="searchInput" placeholder="Enter username">
     <button onclick="searchUser()">Search</button>
   </div>
   <div id="searchResult"></div>
 
-</div>
-
-<div class="chat-window" id="chatWindow">
-  <div class="chat-header">
-    <div id="chatWith"></div>
-    <div id="typingIndicator"></div>
-  </div>
-
+  <h3 id="chatWithName"></h3>
   <div class="chat-box" id="chatBox"></div>
+  <div id="typingIndicator">Typing...</div>
 
   <div class="input-area">
     <input type="text" id="messageInput" placeholder="Type message...">
     <button onclick="sendMessage()">Send</button>
   </div>
+
 </div>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBGBti5osQ56y6jnqR4cYbKvfJwCd_QGFw",
-  authDomain: "mechat-99b43.firebaseapp.com",
-  projectId: "mechat-99b43",
-  storageBucket: "mechat-99b43.firebasestorage.app",
-  messagingSenderId: "779239079350",
-  appId: "1:779239079350:web:b3d2d55d5d8d39220d1517"
-};
 
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
+  const firebaseConfig = {
+    apiKey: "AIzaSyBGBti5osQ56y6jnqR4cYbKvfJwCd_QGFw",
+    authDomain: "mechat-99b43.firebaseapp.com",
+    projectId: "mechat-99b43",
+    storageBucket: "mechat-99b43.firebasestorage.app",
+    messagingSenderId: "779239079350",
+    appId: "1:779239079350:web:b3d2d55d5d8d39220d1517"
+  };
 
-let currentUser;
-let currentChatId;
-let otherUserId;
-let typingTimeout;
-let chatListener;
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
 
-auth.onAuthStateChanged(user=>{
-  if(!user) window.location="index.html";
-  currentUser=user;
-  loadChats();
-});
+  let currentUser;
+  let currentChatId = null;
+  let typingTimeout;
+  let typingUnsubscribe;
 
-function logout(){ auth.signOut(); }
+  auth.onAuthStateChanged(user => {
+    if (!user) {
+      window.location.href = "index.html";
+    } else {
+      currentUser = user;
+      loadChats();
+    }
+  });
 
-function loadChats(){
-  db.collection("chats")
-    .where("participants","array-contains",currentUser.uid)
-    .orderBy("lastTimestamp","desc")
-    .onSnapshot(snapshot=>{
-      const list=document.getElementById("chatList");
-      list.innerHTML="";
-      snapshot.forEach(doc=>{
-        const data=doc.data();
-        const other=data.participants.find(p=>p!==currentUser.uid);
-        const unread=data.unreadCount?.[currentUser.uid]||0;
+  function logout() {
+    auth.signOut();
+  }
 
-        db.collection("users").doc(other).get().then(u=>{
-          const div=document.createElement("div");
-          div.className="chat-item";
-          div.innerHTML=`
-            <div class="chat-username">${u.data()?.username||"User"}</div>
-            <div class="chat-preview">${data.lastMessage||""}</div>
-            ${unread>0?`<div class="badge">${unread}</div>`:""}
-          `;
-          div.onclick=()=>openChat(doc.id,other,u.data()?.username);
-          list.appendChild(div);
+  function loadChats() {
+    db.collection("chats")
+      .where("participants", "array-contains", currentUser.uid)
+      .orderBy("lastUpdated", "desc")
+      .onSnapshot(snapshot => {
+
+        const chatList = document.getElementById("chatList");
+        chatList.innerHTML = "";
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const otherUid = data.participants.find(uid => uid !== currentUser.uid);
+
+          db.collection("users").doc(otherUid).get().then(userDoc => {
+            const div = document.createElement("div");
+            div.className = "card";
+            div.innerText = userDoc.data().username;
+            div.onclick = () => openChat(doc.id, userDoc.data().username);
+            chatList.appendChild(div);
+          });
         });
+
       });
-    });
-}
+  }
 
-function searchUser(){
-  const username=document.getElementById("searchUser").value.trim();
-  if(!username)return;
+  function searchUser() {
+    const name = document.getElementById("searchInput").value;
 
-  db.collection("users").where("username","==",username).get()
-  .then(snap=>{
-    const result=document.getElementById("searchResult");
-    result.innerHTML="";
-    snap.forEach(doc=>{
-      if(doc.id===currentUser.uid)return;
-      const div=document.createElement("div");
-      div.className="chat-item";
-      div.innerHTML=`<div class="chat-username">${username}</div>`;
-      div.onclick=()=>createOrOpenChat(doc.id,username);
-      result.appendChild(div);
-    });
-  });
-}
+    db.collection("users")
+      .where("username", "==", name)
+      .get()
+      .then(snapshot => {
 
-function createOrOpenChat(uid,username){
-  const chatId=[currentUser.uid,uid].sort().join("_");
-  db.collection("chats").doc(chatId).set({
-    participants:[currentUser.uid,uid],
-    lastMessage:"",
-    lastTimestamp:firebase.firestore.FieldValue.serverTimestamp(),
-    unreadCount:{[currentUser.uid]:0,[uid]:0},
-    typing:{[currentUser.uid]:false,[uid]:false}
-  },{merge:true}).then(()=>{
-    openChat(chatId,uid,username);
-  });
-}
+        const result = document.getElementById("searchResult");
+        result.innerHTML = "";
 
-function openChat(chatId,uid,username){
-  currentChatId=chatId;
-  otherUserId=uid;
+        snapshot.forEach(doc => {
 
-  document.getElementById("chatWindow").style.display="flex";
-  document.getElementById("chatWith").innerText=username;
+          if (doc.id === currentUser.uid) return;
 
-  db.collection("chats").doc(chatId).update({
-    ["unreadCount."+currentUser.uid]:0
-  });
+          const div = document.createElement("div");
+          div.className = "card";
+          div.innerText = doc.data().username;
+          div.onclick = () => startChat(doc.id, doc.data().username);
+          result.appendChild(div);
 
-  if(chatListener) chatListener();
+        });
 
-  chatListener=db.collection("chats").doc(chatId)
-    .collection("messages")
-    .orderBy("timestamp")
-    .onSnapshot(snapshot=>{
-      const box=document.getElementById("chatBox");
-      box.innerHTML="";
-      snapshot.forEach(doc=>{
-        const m=doc.data();
-        const div=document.createElement("div");
-        div.className="message "+(m.sender===currentUser.uid?"sent":"received");
-        div.innerText=m.text;
-        box.appendChild(div);
       });
-      box.scrollTop=box.scrollHeight;
-    });
+  }
 
-  db.collection("chats").doc(chatId)
-    .onSnapshot(doc=>{
-      const data=doc.data();
-      if(!data?.typing)return;
-      document.getElementById("typingIndicator").innerText=
-        data.typing[otherUserId]?"Typing...":"";
-    });
-}
+  function startChat(otherUid, otherName) {
 
-document.getElementById("messageInput")
-.addEventListener("input",()=>{
-  if(!currentChatId)return;
-  const ref=db.collection("chats").doc(currentChatId);
+    db.collection("chats")
+      .where("participants", "in", [
+        [currentUser.uid, otherUid],
+        [otherUid, currentUser.uid]
+      ])
+      .get()
+      .then(snapshot => {
 
-  ref.update({["typing."+currentUser.uid]:true});
+        if (!snapshot.empty) {
+          openChat(snapshot.docs[0].id, otherName);
+        } else {
 
-  clearTimeout(typingTimeout);
-  typingTimeout=setTimeout(()=>{
-    ref.update({["typing."+currentUser.uid]:false});
-  },1000);
-});
+          db.collection("chats").add({
+            participants: [currentUser.uid, otherUid],
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+          }).then(docRef => {
+            openChat(docRef.id, otherName);
+          });
 
-function sendMessage(){
-  const input=document.getElementById("messageInput");
-  const text=input.value.trim();
-  if(!text)return;
+        }
 
-  const ref=db.collection("chats").doc(currentChatId);
+      });
+  }
 
-  ref.collection("messages").add({
-    text:text,
-    sender:currentUser.uid,
-    timestamp:firebase.firestore.FieldValue.serverTimestamp()
+  function openChat(chatId, name) {
+
+    currentChatId = chatId;
+    document.getElementById("chatWithName").innerText = name;
+
+    const chatBox = document.getElementById("chatBox");
+    chatBox.innerHTML = "";
+
+    db.collection("chats")
+      .doc(chatId)
+      .collection("messages")
+      .orderBy("timestamp")
+      .onSnapshot(snapshot => {
+
+        chatBox.innerHTML = "";
+
+        snapshot.forEach(doc => {
+          const msg = doc.data();
+          const div = document.createElement("div");
+          div.className = "message " + (msg.sender === currentUser.uid ? "sent" : "received");
+          div.innerText = msg.text;
+          chatBox.appendChild(div);
+        });
+
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+      });
+
+    if (typingUnsubscribe) typingUnsubscribe();
+
+    typingUnsubscribe = db.collection("chats")
+      .doc(chatId)
+      .collection("typing")
+      .onSnapshot(snapshot => {
+
+        let someoneTyping = false;
+
+        snapshot.forEach(doc => {
+          if (doc.id !== currentUser.uid && doc.data().isTyping === true) {
+            someoneTyping = true;
+          }
+        });
+
+        const indicator = document.getElementById("typingIndicator");
+
+        if (someoneTyping) {
+          indicator.style.display = "block";
+        } else {
+          indicator.style.display = "none";
+        }
+
+      });
+  }
+
+  document.getElementById("messageInput").addEventListener("input", () => {
+
+    if (!currentChatId) return;
+
+    const typingRef = db.collection("chats")
+      .doc(currentChatId)
+      .collection("typing")
+      .doc(currentUser.uid);
+
+    typingRef.set({ isTyping: true });
+
+    clearTimeout(typingTimeout);
+
+    typingTimeout = setTimeout(() => {
+      typingRef.set({ isTyping: false });
+    }, 1500);
+
   });
 
-  ref.update({
-    lastMessage:text,
-    lastTimestamp:firebase.firestore.FieldValue.serverTimestamp(),
-    ["unreadCount."+otherUserId]:
-      firebase.firestore.FieldValue.increment(1),
-    ["unreadCount."+currentUser.uid]:0,
-    ["typing."+currentUser.uid]:false
-  });
+  function sendMessage() {
 
-  input.value="";
-}
+    const input = document.getElementById("messageInput");
+    const text = input.value;
+
+    if (!text || !currentChatId) return;
+
+    db.collection("chats")
+      .doc(currentChatId)
+      .collection("messages")
+      .add({
+        text: text,
+        sender: currentUser.uid,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+    db.collection("chats")
+      .doc(currentChatId)
+      .update({
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+    db.collection("chats")
+      .doc(currentChatId)
+      .collection("typing")
+      .doc(currentUser.uid)
+      .set({ isTyping: false });
+
+    input.value = "";
+  }
+
 </script>
 
 </body>
