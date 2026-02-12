@@ -77,15 +77,25 @@
       border-radius: 8px;
       margin: 5px 0;
       max-width: 70%;
+      display: inline-block;
     }
 
     .me {
       background: #DCF8C6;
       margin-left: auto;
+      text-align: right;
     }
 
     .them {
       background: #eee;
+      text-align: left;
+    }
+
+    .time {
+      font-size: 10px;
+      display: block;
+      margin-top: 4px;
+      opacity: 0.7;
     }
   </style>
 </head>
@@ -174,6 +184,12 @@ function decrypt(text) {
   }
 }
 
+function formatTime(timestamp) {
+  if (!timestamp) return "";
+  const date = new Date(timestamp.seconds * 1000);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 function openChat(username, userId) {
   selectedUserId = userId;
   document.getElementById("chatSection").style.display = "block";
@@ -187,26 +203,46 @@ function openChat(username, userId) {
   const messagesRef = collection(db, "chats", chatId, "messages");
   const q = query(messagesRef, orderBy("timestamp"));
 
-  unsubscribeMessages = onSnapshot(q, (snapshot) => {
+  unsubscribeMessages = onSnapshot(q, async (snapshot) => {
     const container = document.getElementById("messages");
     container.innerHTML = "";
 
-    snapshot.forEach((docSnap) => {
+    for (const docSnap of snapshot.docs) {
       const msg = docSnap.data();
+
+      // Mark as seen
+      if (msg.senderId !== currentUser.uid && !msg.seen) {
+        await setDoc(
+          doc(db, "chats", chatId, "messages", docSnap.id),
+          { seen: true },
+          { merge: true }
+        );
+      }
+
       const div = document.createElement("div");
       div.classList.add("bubble");
 
       const text = decrypt(msg.text);
+      const time = formatTime(msg.timestamp);
 
       if (msg.senderId === currentUser.uid) {
         div.classList.add("me");
+        div.innerHTML = `
+          ${text}
+          <span class="time">
+            ${time} ${msg.seen ? "✔✔" : "✔"}
+          </span>
+        `;
       } else {
         div.classList.add("them");
+        div.innerHTML = `
+          ${text}
+          <span class="time">${time}</span>
+        `;
       }
 
-      div.innerText = text;
       container.appendChild(div);
-    });
+    }
 
     container.scrollTop = container.scrollHeight;
   });
@@ -223,7 +259,8 @@ window.sendMessage = async function() {
   await addDoc(collection(db, "chats", chatId, "messages"), {
     senderId: currentUser.uid,
     text: encrypted,
-    timestamp: new Date()
+    timestamp: new Date(),
+    seen: false
   });
 
   await setDoc(doc(db, "chats", chatId), {
