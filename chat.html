@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>MeChat - Secure Chat</title>
+  <title>MeChat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- AES Encryption -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
   <style>
@@ -26,16 +27,17 @@
       padding: 15px;
     }
 
-    .chat-card {
+    .section-title {
+      margin-top: 15px;
+      margin-bottom: 5px;
+    }
+
+    .card {
       background: white;
       padding: 10px;
       border-radius: 8px;
       margin-bottom: 8px;
       cursor: pointer;
-    }
-
-    .chat-card strong {
-      display: block;
     }
 
     #messages {
@@ -96,8 +98,13 @@
 
 <div class="content">
 
-  <h3>Your Chats</h3>
+  <h3 class="section-title">Your Chats</h3>
   <div id="chatList"></div>
+
+  <hr>
+
+  <h3 class="section-title">Start New Chat</h3>
+  <div id="allUsers"></div>
 
   <hr>
 
@@ -124,6 +131,7 @@ import {
   onSnapshot,
   doc,
   getDoc,
+  getDocs,
   addDoc,
   setDoc
 }
@@ -227,12 +235,13 @@ window.sendMessage = async function() {
   input.value = "";
 };
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.href = "index.html";
   } else {
     currentUser = user;
 
+    // Chat List
     const chatQuery = query(
       collection(db, "chats"),
       where("participants", "array-contains", user.uid),
@@ -246,20 +255,34 @@ onAuthStateChanged(auth, (user) => {
       for (const docSnap of snapshot.docs) {
         const chat = docSnap.data();
         const otherUserId = chat.participants.find(id => id !== user.uid);
-
         const userDoc = await getDoc(doc(db, "users", otherUserId));
         const otherUser = userDoc.data();
 
         const div = document.createElement("div");
-        div.className = "chat-card";
+        div.className = "card";
         div.innerHTML = `
           <strong>${otherUser.username}</strong>
           <small>${decrypt(chat.lastMessage)}</small>
         `;
-
         div.onclick = () => openChat(otherUser.username, otherUserId);
 
         chatList.appendChild(div);
+      }
+    });
+
+    // Start New Chat
+    const usersSnapshot = await getDocs(collection(db, "users"));
+    const allUsersDiv = document.getElementById("allUsers");
+    allUsersDiv.innerHTML = "";
+
+    usersSnapshot.forEach((docSnap) => {
+      if (docSnap.id !== user.uid) {
+        const data = docSnap.data();
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `<strong>${data.username}</strong>`;
+        div.onclick = () => openChat(data.username, docSnap.id);
+        allUsersDiv.appendChild(div);
       }
     });
   }
