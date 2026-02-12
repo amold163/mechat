@@ -23,19 +23,10 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 18px;
       font-weight: 600;
       position: sticky;
       top: 0;
       z-index: 100;
-    }
-
-    .header button {
-      background: none;
-      border: none;
-      color: white;
-      font-size: 14px;
-      cursor: pointer;
     }
 
     .container {
@@ -44,9 +35,8 @@
     }
 
     .section-title {
-      font-weight: 600;
       margin: 20px 0 10px;
-      font-size: 16px;
+      font-weight: 600;
       color: #444;
     }
 
@@ -92,7 +82,6 @@
       padding: 10px 15px;
       border-radius: 25px;
       border: 1px solid #ddd;
-      outline: none;
     }
 
     .search-bar button {
@@ -110,7 +99,7 @@
       left: 0;
       right: 0;
       background: #efeae2;
-      height: 55%;
+      height: 60%;
       display: none;
       flex-direction: column;
       border-top-left-radius: 20px;
@@ -124,7 +113,12 @@
       color: white;
       border-top-left-radius: 20px;
       border-top-right-radius: 20px;
-      font-weight: 600;
+    }
+
+    #typingIndicator {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-top: 3px;
     }
 
     .chat-box {
@@ -166,7 +160,6 @@
       padding: 10px 15px;
       border-radius: 25px;
       border: 1px solid #ddd;
-      outline: none;
     }
 
     .input-area button {
@@ -201,10 +194,14 @@
 
 </div>
 
-<!-- CHAT WINDOW -->
 <div class="chat-window" id="chatWindow">
-  <div class="chat-header" id="chatWith"></div>
+  <div class="chat-header">
+    <div id="chatWith"></div>
+    <div id="typingIndicator"></div>
+  </div>
+
   <div class="chat-box" id="chatBox"></div>
+
   <div class="input-area">
     <input type="text" id="messageInput" placeholder="Type message...">
     <button onclick="sendMessage()">Send</button>
@@ -228,6 +225,8 @@ const db = firebase.firestore();
 let currentUser;
 let currentChatId;
 let otherUserId;
+let typingTimeout;
+let chatListener;
 
 auth.onAuthStateChanged(user=>{
   if(!user) window.location="index.html";
@@ -289,7 +288,8 @@ function createOrOpenChat(uid,username){
     participants:[currentUser.uid,uid],
     lastMessage:"",
     lastTimestamp:firebase.firestore.FieldValue.serverTimestamp(),
-    unreadCount:{[currentUser.uid]:0,[uid]:0}
+    unreadCount:{[currentUser.uid]:0,[uid]:0},
+    typing:{[currentUser.uid]:false,[uid]:false}
   },{merge:true}).then(()=>{
     openChat(chatId,uid,username);
   });
@@ -298,6 +298,7 @@ function createOrOpenChat(uid,username){
 function openChat(chatId,uid,username){
   currentChatId=chatId;
   otherUserId=uid;
+
   document.getElementById("chatWindow").style.display="flex";
   document.getElementById("chatWith").innerText=username;
 
@@ -305,7 +306,9 @@ function openChat(chatId,uid,username){
     ["unreadCount."+currentUser.uid]:0
   });
 
-  db.collection("chats").doc(chatId)
+  if(chatListener) chatListener();
+
+  chatListener=db.collection("chats").doc(chatId)
     .collection("messages")
     .orderBy("timestamp")
     .onSnapshot(snapshot=>{
@@ -320,7 +323,28 @@ function openChat(chatId,uid,username){
       });
       box.scrollTop=box.scrollHeight;
     });
+
+  db.collection("chats").doc(chatId)
+    .onSnapshot(doc=>{
+      const data=doc.data();
+      if(!data?.typing)return;
+      document.getElementById("typingIndicator").innerText=
+        data.typing[otherUserId]?"Typing...":"";
+    });
 }
+
+document.getElementById("messageInput")
+.addEventListener("input",()=>{
+  if(!currentChatId)return;
+  const ref=db.collection("chats").doc(currentChatId);
+
+  ref.update({["typing."+currentUser.uid]:true});
+
+  clearTimeout(typingTimeout);
+  typingTimeout=setTimeout(()=>{
+    ref.update({["typing."+currentUser.uid]:false});
+  },1000);
+});
 
 function sendMessage(){
   const input=document.getElementById("messageInput");
@@ -338,8 +362,10 @@ function sendMessage(){
   ref.update({
     lastMessage:text,
     lastTimestamp:firebase.firestore.FieldValue.serverTimestamp(),
-    ["unreadCount."+otherUserId]:firebase.firestore.FieldValue.increment(1),
-    ["unreadCount."+currentUser.uid]:0
+    ["unreadCount."+otherUserId]:
+      firebase.firestore.FieldValue.increment(1),
+    ["unreadCount."+currentUser.uid]:0,
+    ["typing."+currentUser.uid]:false
   });
 
   input.value="";
