@@ -1,133 +1,151 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>MeChat</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeChat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<style>
-body { margin:0; font-family:Arial; background:#f2f2f2; }
+  <!-- Firebase v8 -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
-.header {
-  background:#4CAF50;
-  color:white;
-  padding:15px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
+  <style>
+    body { font-family: Arial; margin: 0; background: #f2f2f2; }
+    .header {
+      background: #4CAF50;
+      color: white;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .container { padding: 15px; }
+    .section-title { font-size: 20px; margin-top: 20px; }
 
-.section { padding:15px; }
+    .chat-item {
+      background: #ddd;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 10px;
+      cursor: pointer;
+      position: relative;
+    }
 
-.chatCard {
-  background:white;
-  padding:12px;
-  margin-bottom:10px;
-  border-radius:10px;
-  cursor:pointer;
-}
+    .badge {
+      background: red;
+      color: white;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 20px;
+      position: absolute;
+      right: 10px;
+      top: 10px;
+    }
 
-.chatHeader {
-  display:flex;
-  justify-content:space-between;
-  font-weight:bold;
-}
+    .search-bar {
+      display: flex;
+      margin-top: 10px;
+    }
 
-.chatPreview {
-  font-size:13px;
-  color:gray;
-  margin-top:4px;
-}
+    .search-bar input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 20px;
+      border: 1px solid #ccc;
+    }
 
-.chatBox {
-  background:#e5ddd5;
-  height:300px;
-  overflow-y:auto;
-  padding:10px;
-  border-radius:12px;
-  margin-top:10px;
-}
+    .search-bar button {
+      margin-left: 10px;
+      padding: 10px 15px;
+      border-radius: 20px;
+      border: none;
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
 
-.message {
-  max-width:70%;
-  padding:8px 12px;
-  margin-bottom:10px;
-  border-radius:12px;
-  font-size:14px;
-  word-wrap:break-word;
-}
+    .chat-box {
+      background: #e5ddd5;
+      padding: 10px;
+      border-radius: 10px;
+      margin-top: 15px;
+      height: 300px;
+      overflow-y: auto;
+    }
 
-.sent {
-  background:#c8e6c9;
-  margin-left:auto;
-}
+    .message {
+      max-width: 70%;
+      padding: 8px;
+      margin: 5px 0;
+      border-radius: 10px;
+      clear: both;
+    }
 
-.received {
-  background:white;
-  margin-right:auto;
-}
+    .sent {
+      background: #dcf8c6;
+      float: right;
+    }
 
-.inputArea {
-  display:flex;
-  margin-top:10px;
-}
+    .received {
+      background: white;
+      float: left;
+    }
 
-input {
-  flex:1;
-  padding:10px;
-  border-radius:20px;
-  border:1px solid #ccc;
-}
+    .input-area {
+      display: flex;
+      margin-top: 10px;
+    }
 
-button {
-  margin-left:8px;
-  padding:10px 15px;
-  border-radius:20px;
-  border:none;
-  background:#4CAF50;
-  color:white;
-  cursor:pointer;
-}
-</style>
+    .input-area input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 20px;
+      border: 1px solid #ccc;
+    }
+
+    .input-area button {
+      margin-left: 10px;
+      padding: 10px 15px;
+      border-radius: 20px;
+      border: none;
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
 </head>
+
 <body>
 
 <div class="header">
-  🔒 MeChat
+  <div>🔒 MeChat</div>
   <button onclick="logout()">Logout</button>
 </div>
 
-<div class="section">
+<div class="container">
 
-<h2>Your Chats</h2>
-<div id="chatList"></div>
+  <div class="section-title">Your Chats</div>
+  <div id="chatList"></div>
 
-<h3>Start New Chat</h3>
-<div style="display:flex; gap:8px; margin-bottom:10px;">
-  <input type="text" id="searchUsername" placeholder="Enter exact username">
-  <button onclick="searchUser()">Search</button>
-</div>
-<div id="searchResult"></div>
-
-<div id="chatSection" style="display:none;">
-  <h3 id="chatWith"></h3>
-  <div class="chatBox" id="messages"></div>
-
-  <div class="inputArea">
-    <input type="text" id="messageInput" placeholder="Type message...">
-    <button onclick="sendMessage()">Send</button>
+  <div class="section-title">Start New Chat</div>
+  <div class="search-bar">
+    <input type="text" id="searchUser" placeholder="Enter username">
+    <button onclick="searchUser()">Search</button>
   </div>
-</div>
+  <div id="searchResult"></div>
+
+  <div id="activeChatSection" style="display:none;">
+    <h3 id="chatWith"></h3>
+    <div class="chat-box" id="chatBox"></div>
+    <div class="input-area">
+      <input type="text" id="messageInput" placeholder="Type message...">
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
 
 </div>
-
-<!-- Firebase v8 -->
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
 <script>
-
 const firebaseConfig = {
   apiKey: "AIzaSyBGBti5osQ56y6jnqR4cYbKvfJwCd_QGFw",
   authDomain: "mechat-99b43.firebaseapp.com",
@@ -143,149 +161,119 @@ const db = firebase.firestore();
 
 let currentUser;
 let currentChatId = null;
-let messageListener = null;
+let otherUserId = null;
 
 auth.onAuthStateChanged(user => {
-  if (!user) {
-    window.location.href = "index.html";
-    return;
-  }
+  if (!user) window.location.href = "index.html";
   currentUser = user;
   loadChats();
 });
 
-function logout() {
+function logout(){
   auth.signOut();
 }
 
-function getChatId(uid1, uid2) {
-  return [uid1, uid2].sort().join("_");
-}
-
-function loadChats() {
-
+function loadChats(){
   db.collection("chats")
     .where("participants", "array-contains", currentUser.uid)
     .orderBy("lastTimestamp", "desc")
-    .onSnapshot(async snapshot => {
+    .onSnapshot(snapshot => {
+      const chatList = document.getElementById("chatList");
+      chatList.innerHTML = "";
 
-      let html = "";
-
-      for (const doc of snapshot.docs) {
-
+      snapshot.forEach(doc => {
         const data = doc.data();
-        const otherUid = data.participants.find(p => p !== currentUser.uid);
+        const other = data.participants.find(uid => uid !== currentUser.uid);
+        const unread = data.unreadCount?.[currentUser.uid] || 0;
 
-        const userDoc = await db.collection("users").doc(otherUid).get();
-        if (!userDoc.exists) continue;
+        db.collection("users").doc(other).get().then(userDoc => {
+          const username = userDoc.data()?.username || "User";
 
-        const username = userDoc.data().username;
-
-        const time = data.lastTimestamp
-          ? data.lastTimestamp.toDate().toLocaleTimeString([], {
-              hour:'2-digit',
-              minute:'2-digit'
-            })
-          : "";
-
-        html += `
-          <div class="chatCard" onclick="openChat('${doc.id}', '${username}')">
-            <div class="chatHeader">
-              <span>${username}</span>
-              <span style="font-size:12px;">${time}</span>
-            </div>
-            <div class="chatPreview">${data.lastMessage || ""}</div>
-          </div>
-        `;
-      }
-
-      document.getElementById("chatList").innerHTML = html;
+          const div = document.createElement("div");
+          div.className = "chat-item";
+          div.innerHTML = username + 
+            (unread > 0 ? `<span class="badge">${unread}</span>` : "");
+          div.onclick = () => openChat(doc.id, other, username);
+          chatList.appendChild(div);
+        });
+      });
     });
 }
 
-function searchUser() {
-
-  const username = document.getElementById("searchUsername").value.trim();
-  if (!username) return;
+function searchUser(){
+  const username = document.getElementById("searchUser").value.trim();
+  if(!username) return;
 
   db.collection("users")
     .where("username", "==", username)
     .get()
     .then(snapshot => {
+      const resultDiv = document.getElementById("searchResult");
+      resultDiv.innerHTML = "";
 
-      if (snapshot.empty) {
-        document.getElementById("searchResult").innerHTML =
-          "<div class='chatCard'>User not found</div>";
-        return;
-      }
+      snapshot.forEach(doc => {
+        if(doc.id === currentUser.uid) return;
 
-      const doc = snapshot.docs[0];
-
-      if (doc.id === currentUser.uid) {
-        document.getElementById("searchResult").innerHTML =
-          "<div class='chatCard'>You cannot message yourself</div>";
-        return;
-      }
-
-      document.getElementById("searchResult").innerHTML = `
-        <div class="chatCard" onclick="startChat('${doc.id}', '${doc.data().username}')">
-          ${doc.data().username}
-        </div>
-      `;
+        const div = document.createElement("div");
+        div.className = "chat-item";
+        div.innerText = username;
+        div.onclick = () => createOrOpenChat(doc.id, username);
+        resultDiv.appendChild(div);
+      });
     });
 }
 
-function startChat(otherUid, username) {
+function createOrOpenChat(userId, username){
+  const chatId = [currentUser.uid, userId].sort().join("_");
 
-  const chatId = getChatId(currentUser.uid, otherUid);
-
-  db.collection("chats").doc(chatId).set({
-    participants: [currentUser.uid, otherUid],
-    lastMessage: "",
-    lastTimestamp: firebase.firestore.FieldValue.serverTimestamp()
-  }, { merge:true });
-
-  openChat(chatId, username);
+  db.collection("chats").doc(chatId).get().then(doc => {
+    if(!doc.exists){
+      db.collection("chats").doc(chatId).set({
+        participants: [currentUser.uid, userId],
+        lastMessage: "",
+        lastTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        unreadCount: {
+          [currentUser.uid]: 0,
+          [userId]: 0
+        }
+      });
+    }
+    openChat(chatId, userId, username);
+  });
 }
 
-function openChat(chatId, username) {
-
+function openChat(chatId, userId, username){
   currentChatId = chatId;
-
-  document.getElementById("chatSection").style.display = "block";
+  otherUserId = userId;
   document.getElementById("chatWith").innerText = username;
+  document.getElementById("activeChatSection").style.display = "block";
 
-  if (messageListener) messageListener();
+  db.collection("chats").doc(chatId).update({
+    ["unreadCount."+currentUser.uid]: 0
+  });
 
-  messageListener = db.collection("chats")
-    .doc(chatId)
+  db.collection("chats").doc(chatId)
     .collection("messages")
     .orderBy("timestamp")
     .onSnapshot(snapshot => {
-
-      let html = "";
-
+      const chatBox = document.getElementById("chatBox");
+      chatBox.innerHTML = "";
       snapshot.forEach(doc => {
         const msg = doc.data();
-        const type = msg.sender === currentUser.uid ? "sent" : "received";
-
-        html += `
-          <div class="message ${type}">
-            ${msg.text}
-          </div>
-        `;
+        const div = document.createElement("div");
+        div.className = "message " + 
+          (msg.sender === currentUser.uid ? "sent" : "received");
+        div.innerText = msg.text;
+        chatBox.appendChild(div);
       });
-
-      document.getElementById("messages").innerHTML = html;
-      const chatBox = document.getElementById("messages");
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 }
 
-function sendMessage() {
-
-  const text = document.getElementById("messageInput").value.trim();
-  if (!text || !currentChatId) return;
+function sendMessage(){
+  const input = document.getElementById("messageInput");
+  const text = input.value.trim();
+  if(!text || !currentChatId) return;
 
   const chatRef = db.collection("chats").doc(currentChatId);
 
@@ -297,12 +285,14 @@ function sendMessage() {
 
   chatRef.update({
     lastMessage: text,
-    lastTimestamp: firebase.firestore.FieldValue.serverTimestamp()
+    lastTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
+    ["unreadCount."+otherUserId]:
+      firebase.firestore.FieldValue.increment(1),
+    ["unreadCount."+currentUser.uid]: 0
   });
 
-  document.getElementById("messageInput").value = "";
+  input.value = "";
 }
-
 </script>
 
 </body>
